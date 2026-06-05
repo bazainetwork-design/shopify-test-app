@@ -1,17 +1,21 @@
-import { useLoading } from "./LoadingProvider";
+// import { useLoading } from "../contexts/LoadingProvider";
+import {
+  showLoading,
+  hideLoading,
+} from './loadingController';
 
-export const useRequest = () => {
-  const { showLoading, hideLoading } = useLoading();
-
-  const request = async (apiFn) => {
+export async function request(
+  url,
+  options
+) {
+  try {
+    console.log('start loading');
     showLoading();
-    try {
-      const res = await apiFn();
-      return res;
-    } finally {
-      hideLoading();
-    }
-  };
 
-  return { request };
-};
+    const response = await fetch(url, options);
+    return response;
+  } finally {
+    console.log('stop loading');
+    hideLoading();
+  }
+}

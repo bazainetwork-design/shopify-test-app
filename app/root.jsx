@@ -1,5 +1,7 @@
 // 根组件，包含 HTML 结构和 React Router 的组件
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { LoadingProvider } from "./contexts/LoadingProvider";
+import GlobalLoading from "./components/GlobalLoading"; 
 
 export default function App() {
   return (
@@ -16,14 +18,12 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <LoadingProvider>
-          <GlobalLoading />
-          <div id="app-root">
+          <LoadingProvider>
+            <GlobalLoading />
             <Outlet />
-          </div>
-          <ScrollRestoration />
-          <Scripts />
-        </LoadingProvider>
+            <ScrollRestoration />
+            <Scripts />
+          </LoadingProvider>
       </body>
     </html>
   );

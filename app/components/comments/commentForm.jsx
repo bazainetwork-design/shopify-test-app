@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../../utils/toast.js'
+import { request } from '../../utils/request.js';
 // 评论表单
 export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
   const [author, setAuthor] = useState('');
@@ -11,6 +12,7 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
   const [error, setError] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [action, setAction] = useState('create');
+  const toast = useToast();
   console.log('comment :>> ', comment);
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -20,7 +22,7 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
     }
 
     setError('');
-    const response = await fetch('/api/review', {
+    const response = await request('/api/review', {
       method: 'POST',
       headers: {
         'Content-type': 'application/json'
@@ -40,7 +42,7 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
     const result = await response.json();
     console.log('result', result);
     if (result && result.success) {
-      useToast('评论提交成功');
+      toast.success('评论提交成功');
       await onResult(result);
       if (isOk) {
         handleReset();
@@ -85,33 +87,33 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
     formData.append('image', file);
 
     try {
-      const response = await fetch('/api/upload-image', {
+      const response = await request('/api/upload-image', {
         method: 'POST',
         body: formData
       });
       if (!response.ok) {
         console.error('Upload failed', response.status);
-        useToast('上传失败');
+        toast.error('上传失败');
         return;
       }
       const result = await response.json();
       console.log('result :>> ', result);
       if(result?.message == 'ok') {
-        useToast('图片上传成功');
+        toast.success('图片上传成功');
         setImageUrl(result?.data?.url);
         console.log('imageUrl', imageUrl)
       } else {
-        useToast('图片地址返回异常');
+        toast.error('图片地址返回异常');
       }
     } catch (error) {
       console.error(error);
-      useToast('上传异常，请稍后再试');
+      toast.error('上传异常，请稍后再试');
     }
     
   };
 
   const handleImageReject = () => {
-    useToast('仅支持图片文件，请检查文件类型或大小');
+    toast.error('仅支持图片文件，请检查文件类型或大小');
     setError('仅支持图片文件，请检查文件类型或大小');
   }
   useEffect(() => {

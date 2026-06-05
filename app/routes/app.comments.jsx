@@ -3,6 +3,7 @@ import { useFetcher } from "react-router";
 import styles from "../styles/comments.module.css";
 import ReviewForm from '../components/comments/commentForm'
 import { request } from '../utils/request.js';
+import { useToast } from '../utils/toast.js'
 
 // 静态 mock 数据，后续由 loader 从数据库 / Metaobject 读取
 const INITIAL_COMMENTS = [
@@ -86,6 +87,7 @@ export default function CommentsPage() {
   const modalRef = useRef(null);
   const [isOk, setIsOk] = useState(false);
   const [delId, setDelId] = useState(null);
+  const toast = useToast();
   let options = {
     page: currentPage,
     pageSize: 10,
@@ -102,14 +104,16 @@ export default function CommentsPage() {
   const deleteComment = async (id) => {
     // 这里可以调用 API 获取评论列表,并更新状态
     const result = await request(`/api/review`, { 
-      method: 'POST',
-      headers: {
-        'Content-type': 'application/json'
-      },
-      body: JSON.stringify({ id, action: 'delete' })
-    });
+        method: 'POST',
+        headers: {
+          'Content-type': 'application/json'
+        },
+        body: JSON.stringify({ id, action: 'delete' })
+      }
+    );
     const data = await result.json();
     if (data && data.success) {
+      toast.success('评论删除成功');
       setComments(prev => prev.filter(comment => comment.id !== id));
       const confirmModal = document.getElementById('confirm-modal');
       confirmModal.hideOverlay();
