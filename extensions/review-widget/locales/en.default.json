@@ -1,10 +1,25 @@
 {
-  "ratings": {
-    "stars": {
-      "label": "Ratings"
-    },
-    "home": {
-      "recommendationText": "Recommended Product!"
-    }
+  "reviews": {
+    "review_submit": "Review submit successfully.",
+    "image_uploaded": "Image uploaded successfully.",
+    "review_title": "Title",
+    "submit_review": "Submit Review",
+    "summary": "Summary",
+    "content_tip": "Please enter a review",
+    "author_tip": "Please enter a nickname",
+    "title_tip": "Please enter a title",
+    "rate_tip": "Please choose your rate.",
+    "author": "Author",
+    "content": "Content",
+    "attachments": "Attachments(jpg, jpeg, png)",
+    "title": "Reviews",
+    "tip":"Rating Snapshot",
+    "desc": "Select a row below to filter reviews.",
+    "stars": "stars",
+    "overll_rating": "Overall rating",
+    "reviewedOn": "Reviewed on",
+    "helpeful": "people found this helpeful",
+    "write_customer_review": "Write a customer review",
+    "noReview": "No reviews yet. Be the first to write a review!"
   }
 }

@@ -1,12 +1,150 @@
-{% assign avg_rating = block.settings.product.metafields.demo.avg_rating.value | round %}
-<span style="color:{{ block.settings.colour }}">
-  {% render 'stars', rating: avg_rating %}
-</span>
-{% if avg_rating >= 4 %}
-  <br>
-  <img src="{{ "thumbs-up.png" | asset_img_url: '15x' }}" height="15" width="15" loading="lazy">
-  {{ 'ratings.home.recommendationText' | t }}
-{% endif %}
+{{ 'review.css' | asset_url | stylesheet_tag }}
+{{ 'review.js' | asset_url | script_tag }}
+<script>
+  window.reviewTranslations = {
+    review_submit: {{ 'reviews.review_submit' | t | json }},
+    image_uploaded: {{ 'reviews.image_uploaded' | t | json }},
+    review_title: {{ 'reviews.review_title' | t | json }},
+    submit_review: {{ 'reviews.submit_review' | t | json }},
+    summary: {{ 'reviews.summary' | t | json }},
+    content_tip: {{ 'reviews.content_tip' | t | json }},
+    author_tip: {{ 'reviews.author_tip' | t | json }},
+    title_tip: {{ 'reviews.title_tip' | t | json }},
+    rate_tip: {{ 'reviews.rate_tip' | t | json }},
+    author: {{ 'reviews.author' | t | json }},
+    content: {{ 'reviews.content' | t | json }},
+    attachments: {{ 'reviews.attachments' | t | json }},
+    title: {{ 'reviews.title' | t | json }},
+    tip: {{ 'reviews.tip' | t | json }},
+    desc: {{ 'reviews.desc' | t | json }},
+    stars: {{ 'reviews.stars' | t | json }},
+    reviewedOn: {{ 'reviews.reviewedOn' | t | json }},
+    overll_rating: {{ 'reviews.overll_rating' | t | json }},
+    helpeful: {{ 'reviews.helpeful' | t | json }},
+    write_customer_review: {{ 'reviews.write_customer_review' | t | json }},
+    noReview: {{ 'reviews.noReview' | t | json }},
+  }
+  window.themeConfig = {
+    __customer: {
+      isLoggedIn: {{ customer | json | default: 'null' }} !== null,
+      id: {{ customer.id | json | default: 'null' }},
+      name: {{ customer.first_name | json | default: 'null' }}
+    },
+    __shop: {
+      name: {{ shop.name | json }}
+    }
+  }
+
+</script>
+<section data-product-id="{{ product.id }}" class="review-widget" id="review-widget">
+  <h3 class="review-widget_title">{{ 'reviews.title' | t }}</h3>
+  <div class="review_widget_wrapper">
+    <div class="review_widget_l">
+      <h4 class="review_widget_l_title">{{ 'reviews.tip' | t }}</h4>
+      <p class="review_widget_l_desc">{{ 'reviews.desc' | t }}</p>
+      <ul class="Reviews_top_wrapper" id="Reviews_top_wrapper"></ul>
+    </div>
+    <div class="review_widget_r">
+      <h4 class="review-ratings_overall">{{ 'reviews.overll_rating' | t }}</h4>
+      <div class="review-ratings">
+        <div class="review_ratings_total"><span class="review-ratings_ratingTotal" id="review_ratings_ratingTotal"></span></div>
+        <div class="review_ratings_star">
+          <ul class="review_ratings_star_ul" id="review_ratings_star_ul"></ul>
+          <p class="review-ratings_rating_num">
+            <span class="rating_review_total" id="rating_review_total"></span>
+            <span class="rating_review_txt">{{ 'reviews.title' | t }}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="commentBox relative">
+  <ul class="commentBox_ul" id="commentList"></ul>
+  <div class="commentBox_footer">
+    <div class="commentBox_footer_left">
+      <div class="commentBox_footer_left_edit">
+        <svg t="1780645579887" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1231" width="25" height="25"><path d="M783.673469 929.959184H177.632653c-45.97551 0-83.591837-37.616327-83.591837-83.591837V240.326531c0-45.97551 37.616327-83.591837 83.591837-83.591837h407.510204c11.493878 0 20.897959 9.404082 20.897959 20.897959s-9.404082 20.897959-20.897959 20.897959H177.632653c-22.987755 0-41.795918 18.808163-41.795918 41.795919v606.040816c0 22.987755 18.808163 41.795918 41.795918 41.795918h606.040816c22.987755 0 41.795918-18.808163 41.795919-41.795918V438.857143c0-11.493878 9.404082-20.897959 20.897959-20.897959s20.897959 9.404082 20.897959 20.897959v407.510204c0 45.97551-37.616327 83.591837-83.591837 83.591837z" fill="#666" p-id="1232"></path><path d="M498.938776 563.722449c-9.926531 0-19.330612-4.179592-27.167347-11.493878-11.493878-11.493878-14.628571-28.212245-7.836735-42.840816l31.346939-66.873469c9.926531-21.420408 23.510204-40.75102 39.706122-56.946939l272.718367-272.718367c26.644898-26.644898 72.097959-25.6 100.310205 3.134693 28.734694 28.734694 29.779592 73.665306 3.134693 100.310205l-272.718367 272.718367c-16.718367 16.718367-35.526531 29.779592-56.946939 39.706122l-66.873469 31.346939c-5.22449 2.612245-10.44898 3.657143-15.673469 3.657143zM854.726531 135.836735c-6.791837 0-13.061224 2.612245-17.763266 7.314285L564.244898 415.346939c-13.061224 13.061224-23.510204 28.212245-31.346939 44.930612l-27.167347 57.469388 57.469388-27.167347c16.718367-7.836735 31.869388-18.285714 44.930612-31.346939l272.718368-272.718367c4.702041-4.702041 7.314286-11.493878 6.791836-19.330613-0.522449-8.359184-4.179592-16.195918-9.92653-21.942857-6.269388-6.269388-14.106122-9.926531-21.942857-9.92653-0.522449 0.522449-0.522449 0.522449-1.044898 0.522449z" fill="#8a8a8a" p-id="1233"></path><path d="M621.714286 497.371429c-5.22449 0-10.44898-2.089796-14.628572-6.269388L532.897959 417.436735c-8.359184-8.359184-8.359184-21.420408 0-29.779592 8.359184-8.359184 21.420408-8.359184 29.779592 0l73.665306 73.665306c8.359184 8.359184 8.359184 21.420408 0 29.779592-4.179592 4.179592-9.404082 6.269388-14.628571 6.269388z" fill="#8a8a8a" p-id="1234"></path></svg>
+        <span class="commentBox_footer_left_edit_txt">{{ 'reviews.write_customer_review' | t }}</span>
+      </div>
+    </div>
+    <div class="commentBox_footer_right_pagination">
+      <div class="pagination_prev">
+        <svg t="1780647012641" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1321" width="16" height="16"><path d="M784.652701 955.6957 346.601985 517.644983c-2.822492-2.822492-2.822492-7.902977 0-11.289967l439.179713-439.179713c6.77398-6.77398 10.725469-16.370452 10.725469-25.966924L796.507166 36.692393c0-20.32194-16.370452-36.692393-36.692393-36.692393l-4.515987 0c-9.596472 0-19.192944 3.951488-25.966924 10.725469L250.072767 489.420066c-12.418964 12.418964-12.418964 32.740904 0 45.159868l477.565601 477.565601c7.338479 7.338479 17.499449 11.854465 28.224917 11.854465l0 0c22.015436 0 40.079383-18.063947 40.079383-40.079383l0 0C796.507166 973.759647 791.99118 963.598677 784.652701 955.6957z" p-id="1322" fill="#bfbfbf"></path></svg>
+      </div>
+      <ul class="pagination_ul" id="reviews_pagination"></ul>
+      <div class="pagination_next">
+        <svg t="1780647012641" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1321" width="16" height="16"><path d="M784.652701 955.6957 346.601985 517.644983c-2.822492-2.822492-2.822492-7.902977 0-11.289967l439.179713-439.179713c6.77398-6.77398 10.725469-16.370452 10.725469-25.966924L796.507166 36.692393c0-20.32194-16.370452-36.692393-36.692393-36.692393l-4.515987 0c-9.596472 0-19.192944 3.951488-25.966924 10.725469L250.072767 489.420066c-12.418964 12.418964-12.418964 32.740904 0 45.159868l477.565601 477.565601c7.338479 7.338479 17.499449 11.854465 28.224917 11.854465l0 0c22.015436 0 40.079383-18.063947 40.079383-40.079383l0 0C796.507166 973.759647 791.99118 963.598677 784.652701 955.6957z" p-id="1322" fill="#bfbfbf"></path></svg>
+      </div>
+    </div>  
+  </div>
+</section>
+
+<div id="reviews-dialog" class="reviews-dialog">
+  <div class="reviews-dialog_wrapper">
+    <p class="reviews-dialog-close">✕</p>
+    <div>
+      <form id="reviewForm">
+        <div class="relative">
+          <p class="reviews_dialog_sum reviews_dialog_t">{{ 'reviews.summary' | t }}</p>
+          <ul class="review_ratings_star_wrapper mb10">
+            <li class="review_ratings_star_li"><svg data-type="1" class="star-svg" width="25" height="25" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"><path d="M500 10 L605 320 L930 320 L665 510 L770 830 L500 630 L230 830 L335 510 L70 320 L395 320 Z" fill="white" stroke="#1999bf" stroke-width="16" /></svg></li>
+            <li class="review_ratings_star_li"><svg data-type="2" class="star-svg" width="25" height="25" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"><path d="M500 10 L605 320 L930 320 L665 510 L770 830 L500 630 L230 830 L335 510 L70 320 L395 320 Z" fill="white" stroke="#1999bf" stroke-width="16" /></svg></li>
+            <li class="review_ratings_star_li"><svg data-type="3" class="star-svg" width="25" height="25" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"><path d="M500 10 L605 320 L930 320 L665 510 L770 830 L500 630 L230 830 L335 510 L70 320 L395 320 Z" fill="white" stroke="#1999bf" stroke-width="16" /></svg></li>
+            <li class="review_ratings_star_li"><svg data-type="4" class="star-svg" width="25" height="25" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"><path d="M500 10 L605 320 L930 320 L665 510 L770 830 L500 630 L230 830 L335 510 L70 320 L395 320 Z" fill="white" stroke="#1999bf" stroke-width="16" /></svg></li>
+            <li class="review_ratings_star_li"><svg data-type="5" class="star-svg" width="25" height="25" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"><path d="M500 10 L605 320 L930 320 L665 510 L770 830 L500 630 L230 830 L335 510 L70 320 L395 320 Z" fill="white" stroke="#1999bf" stroke-width="16" /></svg></li>
+          </ul>
+          <span class="review_error_tip">{{ 'reviews.rate_tip' | t }}</span>
+        </div>
+        <div class="reviews-dialog_title_wrapper relative mb10">
+          <p class="reviews_dialog_title mb10 reviews_dialog_t">{{ 'reviews.review_title' | t }}</p>
+          <input type="text" name="title" placeholder="{{ 'reviews.title_tip' | t }}" class="review_input" required>
+          <span class="review_error_tip">{{ 'reviews.title_tip' | t }}</span>
+        </div>
+        <div class="reviews-dialog_author_wrapper relative mb10">
+          <p class="reviews_dialog_author mb10 reviews_dialog_t">{{ 'reviews.author' | t }}</p>
+          <input type="text" name="author" placeholder="{{ 'reviews.author_tip' | t }}" class="review_input" required>
+          <span class="review_error_tip">{{ 'reviews.author_tip' | t }}</span>
+        </div>
+        <div class="reviews-dialog_content_wrapper relative mb10">
+          <p class="reviews_dialog_content mb10 reviews_dialog_t">{{ 'reviews.content' | t }}</p>
+          <textarea name="content" rows="5" placeholder="{{ 'reviews.content_tip' | t }}" class="review_input" required></textarea>
+          <span class="review_error_tip">{{ 'reviews.content_tip' | t }}</span>
+        </div>
+        {% comment %} {% if customer %} {% endcomment %}
+        <div class="reviews-dialog_content_wrapper mb10">
+          <p class="reviews_dialog_content mb10 reviews_dialog_t">{{ 'reviews.attachments' | t }}</p>
+          <input type="file" name="images" id="uploadImage" accept="image/png, image/jpg, image/jpeg, image/gif" />
+        </div>
+        {% comment %} {% endif %} {% endcomment %}
+        <div class="dialog_content_wrapper">
+          <button type="submit" class="create_review_btn">{{ 'reviews.submit_review' | t }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="bgmask"></div>
+<div id="global-loading" style="
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(255,255,255,0.8);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+">
+  <div style="
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #333;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display:block;
+  "></div>
+</div>
 
 {% schema %}
 {

@@ -1,6 +1,6 @@
-// 上传产品
 import { Buffer } from 'node:buffer';
-import shopify from '../shopify.server.js';
+import { authenticate } from "../shopify.server.js";
+import prisma from '../db.server.js'
 import { successResponse, errorResponse } from '../utils/response.server.js'
 
 // stageUploadsCreate: 让Shopify 给你一个上传地址
@@ -45,35 +45,80 @@ const FILE_CREATE_MUTATION = `
 `;
 
 export async function action({ request }) {
-  console.log('>>> hit /api/upload-image, method =', request.method);
   try {
+
     if (request.method !== 'POST') {
       return Response.json({ error: 'METHOD_NOT_ALLOWED' }, { status: 405 });
     }
 
+    const { admin } = await authenticate.public.appProxy(request);
     const formData = await request.formData();
-    // console.log([...formData.keys()]);
-    // 2.从formData 中取出file
-    // 从前端FormData.append('image', file)
-    const file = formData.get('image');
-
-    console.log('file:', file);
-
-    if (!file) {
-      return Response.json({ error: 'NO_FILE' }, { status: 400 });
+    const imageFile = formData.get("image");
+    const customerId = formData.get("customerId");
+    
+    if (!imageFile) {
+      return errorResponse({ message: 'NO_FILE', status: 400 });
     }
 
-    // file 是一个File对象，可以拿到name,type,arrayBuffer等
-    const fileName = file.name || `comment-${Date.now()}.jpg`;
-    const mimeType = file.type || 'image/jpeg';
+    // 未登录不允许上传
+    if (!customerId) {
+      return errorResponse({ message: "请先登录", status: 401 });
+    }
+  
+    // 进一步验证 customerId 是否真实存在（防伪造）
+    const customer = await admin.graphql(`
+      query { customer(id: "gid://shopify/Customer/${customerId}") { id } }
+    `);
+    
+    if (!customer.data.customer) {
+      return errorResponse({ message: "用户不存在", status: 403 });
+    }
+  
+    // 检查 MIME 类型
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(imageFile.type)) {
+      return errorResponse({ message: "只允许上传图片", status: 400 });
+    }
+  
+    // 检查文件大小（限制 5MB）
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (imageFile.size > MAX_SIZE) {
+      return errorResponse({ message: "图片不能超过 5MB", status: 400 });
+    }
+  
+    // 检查文件头（Magic Bytes），防止伪装
+    const buffer = await imageFile.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    const isJpeg = bytes[0] === 0xFF && bytes[1] === 0xD8;
+    const isPng  = bytes[0] === 0x89 && bytes[1] === 0x50;
+    const isWebp = bytes[8] === 0x57 && bytes[9] === 0x45;
+  
+    if (!isJpeg && !isPng && !isWebp) {
+      return errorResponse({ message: "非法文件", status: 400 });
+    }
+  
+    // 用 Prisma 记录上传次数
+    const recentUploads = await prisma.review.count({
+      where: {
+        userId: customerId,
+        createdAt: {
+          gte: new Date(Date.now() - 60 * 60 * 1000) // 最近1小时
+        }
+      }
+    });
+  
+    if (recentUploads >= 5) {
+      return errorResponse({ message: "上传太频繁，请稍后再试", status: 429 });
+    }
+
+    // imageFile 是一个File对象，可以拿到name,type,arrayBuffer等
+    const fileName = imageFile.name || `comment-${Date.now()}.jpg`;
+    const mimeType = imageFile.type || 'image/jpeg';
     // 把File 转成 Buffer（二进制）
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // 4. 通过shopify.authenticate.admin 拿到Admin GraphQL client
-    const { admin } = await shopify.authenticate.admin(request);
-
-    // 5. 调用 stagedUploadsCreate 获取上传目标URL + 参数
+    const arrayBuffer = await imageFile.arrayBuffer();
+    const _buffer = Buffer.from(arrayBuffer);
+    
+    // 调用 stagedUploadsCreate 获取上传目标URL + 参数
     const stagedUploadVars = {
       input: [
         {
@@ -82,7 +127,7 @@ export async function action({ request }) {
           mimeType: mimeType,
           httpMethod: 'POST',
           // 这里得filesize 必须是字符串(字节数)
-          fileSize: buffer.byteLength.toString(),
+          fileSize: _buffer.byteLength.toString(),
         }
       ]
     };
@@ -91,7 +136,6 @@ export async function action({ request }) {
       variables: stagedUploadVars
     });
     const stagedJson = await stagedResp.json();
-
     const stagedResult = stagedJson.data?.stagedUploadsCreate;
     if (!stagedResult || stagedResult.userErrors?.length) {
       console.error('stagedUploadsCreate errors', stagedResult?.userErrors);
@@ -104,7 +148,6 @@ export async function action({ request }) {
 
     const target = stagedResult.stagedTargets[0];
     const { url, resourceUrl, parameters } = target;
-
     // 把文件POST到staged upload得URL
     const uploadForm = new FormData();
     // 这些parameters 是Shopify要求带上得字段(key,policy,signature)等
@@ -161,11 +204,9 @@ export async function action({ request }) {
     return successResponse({
       data: { url: finalUrl }
     })
-  } catch (error) {
-    console.error('UPLOAD ERROR', error);
-    return errorResponse({
-      message: error?.message || 'UPLOAD_FAILED',
-      data: { stack: error?.stack }
-    })
+
+  }catch(error) {
+    console.log('error :>> ', error);
   }
+
 }

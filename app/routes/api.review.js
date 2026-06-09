@@ -135,6 +135,7 @@ const CreateReview = async (data, shop) => {
     })
   } catch(error) {
     console.log('error', error)
+    return errorResponse({ message: 'error', data: error, status: 500 })
   }
 }
 

@@ -10,42 +10,47 @@ generator client {
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
   provider = "sqlite"
-  url = "file:dev.sqlite"
+  url      = "file:dev.sqlite"
 }
 
 model Session {
-  id            String    @id
-  shop          String
-  state         String
-  isOnline      Boolean   @default(false)
-  scope         String?
-  expires       DateTime?
-  accessToken   String
-  userId        BigInt?
-  firstName     String?
-  lastName      String?
-  email         String?
-  accountOwner  Boolean   @default(false)
-  locale        String?
-  collaborator  Boolean?  @default(false)
-  emailVerified Boolean?  @default(false)
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
 
+// 评论数据
 model Review {
-  id   Int  @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
+  userId    String?
   productId String
-  shop String
+  shop      String
 
-  author String
-  rating Int
-  title String
-  content String
-  status ReviewStatus @default(pending)
-  imageUrl String?
-  isDeleted Boolean @default(false)
+  author    String
+  rating    Int
+  title     String
+  content   String
+  status    ReviewStatus @default(pending)
+  imageUrl  String?
+  isDeleted Boolean      @default(false)
+
+  likeCount Int          @default(0)
+  likes     ReviewLike[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -55,4 +60,25 @@ enum ReviewStatus {
   pending
   approved
   rejected
+}
+
+// 记录图片上传日志
+model UploadLog {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  createdAt DateTime @default(now())
+}
+
+// 评论点赞表
+model ReviewLike {
+  id Int @id @default(autoincrement())
+
+  reviewId   Int
+  customerId String
+
+  review Review @relation(fields: [reviewId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, customerId])
 }
