@@ -8,15 +8,13 @@ export async function loader({ request }) {
   try {
     const url = new URL(request.url);
     console.log('Loader triggered: ', request.url);
-    console.log("HOST:", request.headers.get("host"));
-    console.log("REFERER:", request.headers.get("referer"));
-    // const { session } = await authenticate.public.appProxy(request);
+    const { session } = await authenticate.public.appProxy(request);
     const productId = url.searchParams.get("id");
     const locale = url.searchParams.get("locale");
     const page = Number(url.searchParams.get("page")) || 1;
     const pageSize = Number(url.searchParams.get("pageSize")) || 10;
     const visitorId = url.searchParams.get("visitorId") || '';
-    const customerId = visitorId;
+    const customerId = session?.loggedInCustomerId ?? visitorId;
     if (!productId) {
       return errorResponse({
         message: 'Product ID is required',
@@ -54,7 +52,7 @@ export async function loader({ request }) {
     ]);
 
     const total = aggregate._count;
-    const avgRating = aggregate._avg.rating || 0;
+    const avgRating = parseFloat((aggregate._avg.rating ?? 0).toFixed(1));
 
     const ratingMap = {
       1: 0,

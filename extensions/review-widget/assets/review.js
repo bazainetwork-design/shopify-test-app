@@ -316,9 +316,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const result = await response.json();
       if (result.success) {
         showToast(t.review_submit)
-        list.unshift(result.data);
-        list.pop();
-        renderReviews(list);
+        form.reset();
+        reviewsDialogClose.click();
       }
     } finally {
       hideLoading()
