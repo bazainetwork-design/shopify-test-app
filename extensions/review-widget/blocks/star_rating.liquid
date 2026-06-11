@@ -31,10 +31,10 @@
       name: {{ customer.first_name | json | default: 'null' }}
     },
     __shop: {
-      name: {{ shop.name | json }}
+      name: {{ shop.name | json }},
+      locale: {{ localization.language.iso_code | json | default: 'en' }}
     }
   }
-
 </script>
 <section data-product-id="{{ product.id }}" class="review-widget" id="review-widget">
   <h3 class="review-widget_title">{{ 'reviews.title' | t }}</h3>
@@ -111,12 +111,12 @@
           <textarea name="content" rows="5" placeholder="{{ 'reviews.content_tip' | t }}" class="review_input" required></textarea>
           <span class="review_error_tip">{{ 'reviews.content_tip' | t }}</span>
         </div>
-        {% comment %} {% if customer %} {% endcomment %}
+        {% if customer %}
         <div class="reviews-dialog_content_wrapper mb10">
           <p class="reviews_dialog_content mb10 reviews_dialog_t">{{ 'reviews.attachments' | t }}</p>
           <input type="file" name="images" id="uploadImage" accept="image/png, image/jpg, image/jpeg, image/gif" />
         </div>
-        {% comment %} {% endif %} {% endcomment %}
+        {% endif %}
         <div class="dialog_content_wrapper">
           <button type="submit" class="create_review_btn">{{ 'reviews.submit_review' | t }}</button>
         </div>

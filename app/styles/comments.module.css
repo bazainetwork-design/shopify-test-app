@@ -7,3 +7,10 @@
 ._flex{
   display:flex;
 }
+
+.language_select {
+  width: 160px;
+} 
+.actions {
+  flex-wrap: nowrap;
+}

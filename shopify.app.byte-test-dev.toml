@@ -7,7 +7,7 @@ embedded = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_metaobject_definitions,write_metaobjects,write_products,write_files"
+scopes = "write_metaobject_definitions,write_metaobjects,write_products,write_files,write_app_proxy,read_locales"
 
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
@@ -19,6 +19,6 @@ api_version = "2026-07"
 automatically_update_urls_on_dev = true
 
 [app_proxy]
-url = "https://expertise-pharmacology-arranged-laden.trycloudflare.com/api/front-review"
-subpath = "front-review"
+url = "/api/front-review"
+subpath = "reviews"
 prefix = "apps"

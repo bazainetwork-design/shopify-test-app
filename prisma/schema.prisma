@@ -49,6 +49,8 @@ model Review {
   imageUrl  String?
   isDeleted Boolean      @default(false)
 
+  locale String @default("en")
+
   likeCount Int          @default(0)
   likes     ReviewLike[]
 

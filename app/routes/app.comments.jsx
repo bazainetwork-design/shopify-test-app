@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useFetcher } from "react-router";
+import * as XLSX from 'xlsx';
 import styles from "../styles/comments.module.css";
 import ReviewForm from '../components/comments/commentForm'
 import { request } from '../utils/request.js';
@@ -72,14 +73,14 @@ function renderStars(rating) {
 
 export default function CommentsPage() {
   const [comments, setComments] = useState([]);
-  const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const [selectedIds, setSelectedIds] = useState([]);
-  const allSelected = selectedIds.length === INITIAL_COMMENTS.length;
-  const someSelected = selectedIds.length > 0 && selectedIds.length < INITIAL_COMMENTS.length;
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
+  const allSelected = comments.length > 0 && comments.length === selectedIds.length;
+  const someSelected = selectedIds.length > 0 && selectedIds.length < comments.length;
   const [accessibilityLabel, setAccessibilityLabel] = useState('新建商品评论表单');
   const [headingTitle, setHeadingTitle] = useState('新建评论');
   const [comment, setComment] = useState(null);
@@ -88,15 +89,22 @@ export default function CommentsPage() {
   const [isOk, setIsOk] = useState(false);
   const [delId, setDelId] = useState(null);
   const toast = useToast();
+  const fileRef = useRef(null);
+  const [locales, setLocales] = useState([]);
+  const [language, setLanguage] = useState('en');
+  let firstLoad = useRef(true);
+
+  const handleChange = (e) => {
+    setLanguage(e.target.value);
+  };
   let options = {
     page: currentPage,
     pageSize: 10,
     filter,
     search
   }
-
   const getComments = async (params) => {
-    const { page = 1, pageSize = 10, filter = 'all', search = '' } = params;
+    const { page, pageSize, filter, search } = params;
     // 这里可以调用 API 获取评论列表,并更新状态
     fetcher.load(`/api/review?page=${page}&pageSize=${pageSize}&filter=${filter}&search=${search}`);
   }
@@ -121,24 +129,19 @@ export default function CommentsPage() {
   }
 
   useEffect(() => {
-    getComments(options);
-  }, [])
-
-  useEffect(() => {
     if (!fetcher.data) return;
-    console.log('fetcher.data :>> ', fetcher.data);
     const _data = fetcher.data;
-    if (_data && _data.success) {
-      setComments(_data.data.list);
-      setTotalPages(_data.data.totalPages);
-      setTotal(_data.data.total);
-    }
+    setLocales(_data.locales);
+    setComments(_data.data.list);
+    setTotalPages(_data.data.totalPages);
+    setTotal(_data.data.total);
   }, [fetcher.data])
 
   // 上一页
   const handlePreviousPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
+
   // 下一页
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
@@ -161,6 +164,7 @@ export default function CommentsPage() {
     setDelId(id);
     confirmModal.showOverlay();
   }
+
   const handleConfirmDelete = async () => {
     deleteComment(delId);
   }
@@ -169,7 +173,7 @@ export default function CommentsPage() {
     if (allSelected) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(INITIAL_COMMENTS.map(p => p.id));
+      setSelectedIds(comments.map(p => p.id));
     }
   }
 
@@ -196,13 +200,12 @@ export default function CommentsPage() {
   }
 
   useEffect(() => {
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      return
+    }
     const timer = setTimeout(async () => {
-      const result = await getComments({...options, page: currentPage, filter, search: search.trim().toLowerCase() })
-      if (result && result.success) {
-        setComments(result.data.list);
-        setTotalPages(result.data.totalPages);
-        setTotal(result.data.total);
-      }
+      await getComments({...options, page: currentPage, filter, search: search.trim().toLowerCase() })
     }, 300)
 
     return () => clearTimeout(timer);
@@ -217,17 +220,74 @@ export default function CommentsPage() {
     } else {
       setAccessibilityLabel('编辑商品评论表单');
       setHeadingTitle('编辑评论')
-      console.log('comments :>> ', comment);
+      console.log('编辑评论 :>> ', comment);
       setComment(comment);
     }
     reviewModal.showOverlay();
   }
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = async (evt) => {
+      const arrayBuffer = evt.target.result;
+
+      // 解析Excel
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+
+      const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+      console.log('解析结果 :>> ', jsonData);
+
+      // 校验数据
+      const validData = jsonData.filter(
+        (item) => item.author && item.rating && item.content
+      );
+      // 批量提交API
+      try {
+        const response = await request('/api/review', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            locale: language,
+            data: validData,
+            action: 'import'
+          })
+        });
+        const result = await response.json();
+        if (result.message == 'ok') {
+          e.target.value = '';
+          toast.success('恭喜, 导入成功！')
+        } else {
+          toast.error('很遗憾，导入失败！')
+        }
+      } catch (error) {
+        console.log('error :>> ', error);
+        toast.error('很遗憾，导入异常！')
+      }
+    }
+    reader.readAsArrayBuffer(file);
+  }
+
+  const handleButtonClick = () => {
+    fileRef.current?.click()
+  }
+
+  const handleFilter = (id) => {
+    setFilter(id);
+    setCurrentPage(1);
+  }
+
   return (
     <s-page heading="评论管理">
-      <s-button slot="primary-action" disabled>
-        导出(待接入)
-      </s-button>
 
       {/* 数据概览 */}
       <s-section heading="数据概览">
@@ -268,13 +328,28 @@ export default function CommentsPage() {
                 <s-button
                   key={item.id}
                   variant={filter === item.id ? "primary" : "secondary"}
-                  onClick={() => setFilter(item.id)}
+                  onClick={() => handleFilter(item.id)}
                 >
                   {item.label}
                 </s-button>
               ))}
             </s-stack>
-            <s-stack direction="inline" gap="base" class={styles.create_comment}>
+            <s-stack direction="inline" gap="base" alignItems="center" class={styles.create_comment}>
+              <div className={styles.language_select}>
+                <s-select name="language" value={language} onChange={handleChange}>
+                  {locales.map(ele => (
+                    <s-option key={ele.locale} value={ele.locale}>{ele.name}</s-option>
+                  ))}
+                </s-select>
+              </div>
+              <s-button onClick={handleButtonClick}>导入评论</s-button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                style={{ display: "none" }}
+              />
               <s-button onClick={() => handleOpen(1)}>新建评论</s-button>
             </s-stack>
           </s-stack>
@@ -456,10 +531,10 @@ export default function CommentsPage() {
           isOk={isOk} 
           headingTitle={headingTitle} 
           comment={comment}
+          locales={locales}
         />
       </s-modal>
       
-        
       <s-modal id="confirm-modal" heading="确认删除" size="small-100">
         <s-text>确定要删除这条记录吗？此操作不可撤销。</s-text>
         <s-button
@@ -478,14 +553,6 @@ export default function CommentsPage() {
           command="--hide"
         >取消</s-button>
       </s-modal>
-
-
-
-
-
-
-
-
 
     </s-page>
   )

@@ -8,12 +8,15 @@ export async function loader({ request }) {
   try {
     const url = new URL(request.url);
     console.log('Loader triggered: ', request.url);
-    const { session } = await authenticate.public.appProxy(request);
+    console.log("HOST:", request.headers.get("host"));
+    console.log("REFERER:", request.headers.get("referer"));
+    // const { session } = await authenticate.public.appProxy(request);
     const productId = url.searchParams.get("id");
+    const locale = url.searchParams.get("locale");
     const page = Number(url.searchParams.get("page")) || 1;
     const pageSize = Number(url.searchParams.get("pageSize")) || 10;
     const visitorId = url.searchParams.get("visitorId") || '';
-    const customerId = session?.loggedInCustomerId ?? visitorId;
+    const customerId = visitorId;
     if (!productId) {
       return errorResponse({
         message: 'Product ID is required',
@@ -21,12 +24,12 @@ export async function loader({ request }) {
       });
     }
     const where = {
+      locale,
       productId,
       isDeleted: false,
       status: "approved" // 只返回公开评论
     };
     
-
     const [list, ratingStats, aggregate] = await Promise.all([
       prisma.review.findMany({
         where,
@@ -96,7 +99,7 @@ export async function loader({ request }) {
   } catch(error) {
     console.log('error', error);
     return errorResponse({
-      message: error.message || 'Update review failed',
+      message: error.message || 'Get review failed',
       status: 500
     });
   }

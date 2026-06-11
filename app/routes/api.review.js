@@ -4,25 +4,40 @@ import { successResponse, errorResponse } from '../utils/response.server.js'
 import { authenticate } from "../shopify.server";
 
 export async function loader({ request }) {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const url = new URL(request.url);
-  const id = url.searchParams.get('id');
   const page = Number(url.searchParams.get('page')) || 1;
   const pageSize = Number(url.searchParams.get('pageSize')) || 10;
   const filter = url.searchParams.get('filter') || 'all';
   const search = url.searchParams.get('search') || '';
   const shop = session.shop;
-  if (id) {
-    return getReview(id);
-  }
 
-  return getReviews({
+  const response = await admin.graphql(`
+    #graphql
+    query {
+      shopLocales {
+        locale
+        name
+        primary
+        published
+      }
+    }
+  `)
+  const localeResult = await response.json();
+
+  const reviewResponse = await getReviews({
     page,
     pageSize,
     filter,
     search,
     shop
-  });
+  })
+
+  const result = await reviewResponse.json();
+  return {
+    data: result.data,
+    locales: localeResult.data.shopLocales
+  };
 }
 
 export async function action({request}) {
@@ -32,65 +47,90 @@ export async function action({request}) {
   switch (data.action) {
     case 'create':
       if (request.method !== 'POST') {
-        return Response.json({ error: 'METHOD_NOT_ALLOWED' }, { status: 405 });
+        return errorResponse({ error: 'METHOD_NOT_ALLOWED' }, { status: 405 });
       }
-      
       return CreateReview(data, session.shop);
     case 'update':
       if (request.method !== 'POST') {
-        return Response.json({ error: 'METHOD_NOT_ALLOWED' }, { status: 405 });
+        return errorResponse({ error: 'METHOD_NOT_ALLOWED', status: 405 });
       }
       return UpdateReview(data, session.shop);
     case 'delete':
       if (request.method !== 'POST') {
-        return Response.json({ error: 'METHOD_NOT_ALLOWED' }, { status: 405 });
+        return errorResponse({ error: 'METHOD_NOT_ALLOWED', status: 405 });
       }
       return DeleteReview(data.id);
+    case 'import':
+      if (request.method !== 'POST') {
+        return errorResponse({ error: 'METHOD_NOT_ALLOWED', status: 405 });
+      }
+      return BulkImportComment(data, session.shop);
   }
 }
 
 // 基础校验
 const checkBaseInfo = (data) => {
-  if (!data.author || 
-    !data.rating || 
-    !data.productId ||
-    !data.status ||
-    !data.title ||
-    !data.content
-  ) {
-    return errorResponse({ message: '信息不齐', status: 400 })
-  }
-  const cleanContent = sanitizeHtml(data.content, {
-    allowedTags: [],
-    allowedAttributes: {},
-  })
-  const cleanTitle = sanitizeHtml(data.title, {
-    allowedTags: [],
-    allowedAttributes: {},
-  })
-  const cleanProductId = sanitizeHtml(data.productId, {
-    allowedTags: [],
-    allowedAttributes: {},
-  })
-  const cleanAuthor = sanitizeHtml(data.author, {
-    allowedTags: [],
-    allowedAttributes: {},
-  })
-  const cleanImageUrl = sanitizeHtml(data.imageUrl, {
-    allowedTags: [],
-    allowedAttributes: {},
-  })
-  const cleanStatus = sanitizeHtml(data.status, {
-    allowedTags: [],
-    allowedAttributes: {},
-  })
-  return {
-    cleanContent,
-    cleanTitle,
-    cleanProductId,
-    cleanAuthor,
-    cleanImageUrl,
-    cleanStatus
+  if (data instanceof Array) {
+    const safeData = data.map(item => {
+      const safeItem = {};
+      Object.keys(item).forEach(key => {
+        safeItem[key] = typeof item[key] === 'string' 
+        ? sanitizeHtml(item[key], {
+          allowedTags: [],
+          allowedAttributes: {},
+        })
+        : item[key]
+      })
+      return safeItem
+    })
+    return safeData
+  } else {
+    if (!data.author || 
+      !data.rating || 
+      !data.productId ||
+      !data.status ||
+      !data.title ||
+      !data.content
+    ) {
+      return errorResponse({ message: '信息不齐', status: 400 })
+    }
+    const cleanContent = sanitizeHtml(data.content, {
+      allowedTags: [],
+      allowedAttributes: {},
+    })
+    const cleanTitle = sanitizeHtml(data.title, {
+      allowedTags: [],
+      allowedAttributes: {},
+    })
+    const cleanProductId = sanitizeHtml(data.productId, {
+      allowedTags: [],
+      allowedAttributes: {},
+    })
+    const cleanAuthor = sanitizeHtml(data.author, {
+      allowedTags: [],
+      allowedAttributes: {},
+    })
+    const cleanImageUrl = sanitizeHtml(data.imageUrl, {
+      allowedTags: [],
+      allowedAttributes: {},
+    })
+    const cleanStatus = sanitizeHtml(data.status, {
+      allowedTags: [],
+      allowedAttributes: {},
+    })
+    const cleanLocale = sanitizeHtml(data.locale, {
+      allowedTags: [],
+      allowedAttributes: {},
+    })
+    return {
+      cleanContent,
+      cleanTitle,
+      cleanProductId,
+      cleanAuthor,
+      cleanImageUrl,
+      cleanStatus,
+      cleanLocale
+    }
   }
 }
 
@@ -103,7 +143,8 @@ const CreateReview = async (data, shop) => {
       cleanProductId,
       cleanAuthor,
       cleanImageUrl,
-      cleanStatus
+      cleanStatus,
+      cleanLocale,
     } = checkBaseInfo(data);
     // 入库
     const review = await prisma.review.create({
@@ -115,7 +156,8 @@ const CreateReview = async (data, shop) => {
         title: cleanTitle,
         content: cleanContent,
         status: cleanStatus || 'pending',
-        imageUrl: cleanImageUrl || null
+        imageUrl: cleanImageUrl || null,
+        locale: cleanLocale
       }
     });
     
@@ -131,6 +173,7 @@ const CreateReview = async (data, shop) => {
         imageUrl: review.imageUrl,
         createdAt: review.createdAt.toISOString(),
         updatedAt: review.updatedAt.toISOString(),
+        locale: review.locale
       } 
     })
   } catch(error) {
@@ -149,7 +192,8 @@ const UpdateReview = async (data) => {
       cleanProductId,
       cleanAuthor,
       cleanImageUrl,
-      cleanStatus
+      cleanStatus,
+      cleanLocale
     } = checkBaseInfo(data);
     const id = Number(data.id);
     const existing = await prisma.review.findUnique({
@@ -170,7 +214,8 @@ const UpdateReview = async (data) => {
         title: cleanTitle,
         content: cleanContent,
         status: cleanStatus ?? 'pending',
-        imageUrl: cleanImageUrl || null
+        imageUrl: cleanImageUrl || null,
+        locale: cleanLocale
       }
     });
 
@@ -186,6 +231,7 @@ const UpdateReview = async (data) => {
         imageUrl: review.imageUrl,
         createdAt: review.createdAt.toISOString(),
         updatedAt: review.updatedAt.toISOString(),
+        locale: review.locale
       } 
     })
   } catch (error) {
@@ -227,6 +273,12 @@ const DeleteReview = async (id) => {
     return errorResponse({ message: error.message });
   }
 }
+
+// 获取单条评论
+// const getReview = async (id) => {
+//   console.log('id :>> ', id);
+// }
+
 // 获取评论
 const getReviews = async ({ page, pageSize, filter, search, shop}) => {
   const cleanSearch = sanitizeHtml(search, {
@@ -284,7 +336,33 @@ const getReviews = async ({ page, pageSize, filter, search, shop}) => {
   })
 }
 
-// 获取单条评论
-const getReview = async (id) => {
-  console.log('id :>> ', id);
+// 批量导入评论
+const BulkImportComment = async (data, shop) => {
+  const { data: _data, locale } = data;
+  if (!Array.isArray(_data)) {
+    return errorResponse({ error: "invalid data", status: 400 });
+  }
+
+  const safeData = checkBaseInfo(_data);
+
+  const insertData = safeData.map(item => ({
+    shop,
+    author: item.author,
+    rating: Number(item.rating),
+    content: item.content,
+    title: item.title,
+    productId: item.productId,
+    status: item.status,
+    locale,
+  }));
+
+  const result = await prisma.review.createMany({
+    data: insertData
+  })
+
+  return successResponse({
+    data: {
+      count: result.count
+    }
+  });
 }

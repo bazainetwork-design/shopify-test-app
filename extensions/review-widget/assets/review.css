@@ -305,7 +305,7 @@ dialog::backdrop {
   border-width: 1px;
   border-style: solid;
   background-color: #fff;
-  color: rgba(0, 0, 0, .15);
+  color: rgba(0, 0, 0, .85);
   border-radius: 2px;
   display: block;
   width: 100%;

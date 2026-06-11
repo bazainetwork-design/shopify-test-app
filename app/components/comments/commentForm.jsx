@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useToast } from '../../utils/toast.js'
 import { request } from '../../utils/request.js';
 // 评论表单
-export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
+export default function ReviewForm({onResult, isOk, headingTitle, comment, locales}) {
   const [author, setAuthor] = useState('');
   const [rating, setRating] = useState(5);
   const [productId, setProductId] = useState();
@@ -12,8 +12,10 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
   const [error, setError] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [action, setAction] = useState('create');
+  const [locale, setLocale] = useState('');
+  const dropzoneRef = useRef(null);
   const toast = useToast();
-  console.log('comment :>> ', comment);
+  // console.log('comment :>> ', comment);
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!author || !productId || !title || !content) {
@@ -37,10 +39,10 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
         content,
         status,
         imageUrl,
+        locale
       })
     })
     const result = await response.json();
-    console.log('result', result);
     if (result && result.success) {
       toast.success('评论提交成功');
       await onResult(result);
@@ -57,11 +59,14 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
       content,
       status,
       imageUrl,
+      locale
     });
   };
 
   useEffect(() => {
     if(comment) {
+      const preview = document.getElementById('reivewImagePreview');
+      preview.setAttribute('src', comment.imageUrl);
       setAction('update');
       setAuthor(comment.author || '');
       setProductId(comment.productId || '');
@@ -70,8 +75,13 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
       setContent(comment.content || '');
       setStatus(comment.status || 'approved');
       setImageUrl(comment.imageUrl || '');
+      setLocale(comment.locale || '');
     }
   }, [comment])
+
+  const handleChange = (e) => {
+    setLocale(e.target.value);
+  };
 
   const handleImageChange = async (event) => {
     const nextFiles = Array.from(event.currentTarget?.files ?? []);
@@ -131,6 +141,12 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
     setError('');
   }
 
+  useEffect(() => {
+    if (!dropzoneRef.current) return;
+  
+    dropzoneRef.current.onDropRejected = handleImageReject;
+  }, []);
+
   return (
     <s-section padding="base" accessibilityLabel={headingTitle}>
       {/* 最外层<form> 承载 submit/reset */}
@@ -142,6 +158,12 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
               <s-text>{error}</s-text>
             </s-banner>
           )}
+
+          <s-select label="语言选择" name="language" value={locale} onChange={handleChange} required>
+            {locales.map(ele => (
+              <s-option key={ele.locale} value={ele.locale}>{ele.name}</s-option>
+            ))}
+          </s-select>
 
           {/* 作者 */}
           <s-text-field
@@ -215,6 +237,7 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
 
           {/* 图片上传: Drop zone */}
           <s-drop-zone
+            ref={dropzoneRef}
             label="上传图片"
             id="reivewImage"
             name="images"
@@ -222,7 +245,6 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment}) {
             multiple="false"
             accessibilityLabel="上传评论图片"
             onChange={handleImageChange}
-            onDropRejected={handleImageReject}
           />
           {/* 用来存储后端返回的图片 URL */}
           <input type="hidden" name="uploadedImageUrl" id="uploadedImageUrl" />

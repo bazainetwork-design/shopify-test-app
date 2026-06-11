@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const reviewsDialog = document.getElementById('reviews-dialog');
   const productId = container.dataset.productId;
   const t = window.reviewTranslations;
+  const locale = window.themeConfig.__shop.locale;
   const reviewRatingsStarWrapper = document.querySelector('.review_ratings_star_wrapper');
   const review_error_tip = document.querySelectorAll('.review_error_tip');
   const stars = document.querySelectorAll('.star-svg');
@@ -27,8 +28,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   async function getReviews() {
     try {
-      const response = await fetch(`/apps/front-review?id=${productId}&page=${page}&pageSize=${pageSize}&visitorId=${visitorId}`);
+      console.log('object :>> 请求');
+      const response = await fetch(`/apps/reviews?id=${productId}&page=${page}&pageSize=${pageSize}&visitorId=${visitorId}&locale=${locale}`);
       const reviews = await response.json();
+      console.log('reviews :>> ', reviews);
       if (reviews?.success) {
         list = reviews?.data?.list;
         page = reviews?.data?.page;
@@ -199,7 +202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       formData.append('action', 'like');
       formData.append('reviewId', reviewId);
       formData.append('visitorId', visitorId);
-      const response = await fetch('/apps/front-review', {
+      const response = await fetch('/apps/reviews', {
         method: 'POST',
         body: formData
       })
@@ -303,9 +306,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     formData.append('rate', Number(selectedRating))
     formData.append('productId', productId)
     formData.append('imageUrl', imageUrl)
+    formData.append('locale', locale)
     showLoading()
     try {
-      const response = await fetch('/apps/front-review', {
+      const response = await fetch('/apps/reviews', {
         method: 'POST',
         body: formData
       });
@@ -331,7 +335,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       formData.append('image', file);
       showLoading();
       try {
-        const response = await fetch('/apps/front-review', {
+        const response = await fetch('/apps/reviews', {
           method: 'POST',
           body: formData
         });
