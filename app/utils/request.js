@@ -1,4 +1,3 @@
-// import { useLoading } from "../contexts/LoadingProvider";
 import {
   showLoading,
   hideLoading,

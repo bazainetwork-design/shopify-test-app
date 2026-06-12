@@ -11,6 +11,7 @@ export async function loader({ request }) {
     const { session } = await authenticate.public.appProxy(request);
     const productId = url.searchParams.get("id");
     const locale = url.searchParams.get("locale");
+    const rating = Number(url.searchParams.get("rating")) || '';
     const page = Number(url.searchParams.get("page")) || 1;
     const pageSize = Number(url.searchParams.get("pageSize")) || 10;
     const visitorId = url.searchParams.get("visitorId") || '';
@@ -21,16 +22,16 @@ export async function loader({ request }) {
         status: 400
       });
     }
-    const where = {
+    let where = {
       locale,
       productId,
       isDeleted: false,
       status: "approved" // 只返回公开评论
     };
-    
+    const queryWhere = rating ? { ...where, rating } : where;
     const [list, ratingStats, aggregate] = await Promise.all([
       prisma.review.findMany({
-        where,
+        where: queryWhere,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: "desc" }

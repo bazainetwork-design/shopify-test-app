@@ -33,6 +33,11 @@ ul,li{list-style: none;}
   position: relative;
   border-radius: 20px;
   background-color: #eee;
+  cursor: pointer;
+}
+
+.Reviews_progress_rate:hover {
+  background-color: rgba(25,153,191, .5);
 }
 
 .progress-bar {

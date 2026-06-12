@@ -1,10 +1,10 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { useFetcher } from "react-router";
 import * as XLSX from 'xlsx';
 import styles from "../styles/comments.module.css";
-import ReviewForm from '../components/comments/commentForm'
+import ReviewForm from '../components/comments/commentForm';
 import { request } from '../utils/request.js';
-import { useToast } from '../utils/toast.js'
+import { useToast } from '../utils/toast.js';
+import { useGlobalFetcher } from '../hooks/useFetcher';
 
 // 静态 mock 数据，后续由 loader 从数据库 / Metaobject 读取
 const INITIAL_COMMENTS = [
@@ -84,7 +84,7 @@ export default function CommentsPage() {
   const [accessibilityLabel, setAccessibilityLabel] = useState('新建商品评论表单');
   const [headingTitle, setHeadingTitle] = useState('新建评论');
   const [comment, setComment] = useState(null);
-  const fetcher = useFetcher();
+  const fetcher = useGlobalFetcher();
   const modalRef = useRef(null);
   const [isOk, setIsOk] = useState(false);
   const [delId, setDelId] = useState(null);
@@ -97,17 +97,25 @@ export default function CommentsPage() {
   const handleChange = (e) => {
     setLanguage(e.target.value);
   };
+
   let options = {
     page: currentPage,
     pageSize: 10,
     filter,
     search
   }
+
   const getComments = async (params) => {
     const { page, pageSize, filter, search } = params;
+
     // 这里可以调用 API 获取评论列表,并更新状态
     fetcher.load(`/api/review?page=${page}&pageSize=${pageSize}&filter=${filter}&search=${search}`);
   }
+
+  // 监听 fetcher 状态
+  useEffect(() => {
+    console.log('fetcher.state :>> ', fetcher.state);
+  }, [fetcher.state]);
 
   const deleteComment = async (id) => {
     // 这里可以调用 API 获取评论列表,并更新状态
@@ -128,6 +136,49 @@ export default function CommentsPage() {
     }
   }
 
+  const getPagination = (currentPage, totalPage) => {
+    if (totalPage <= 7) {
+      return Array.from({ length: totalPage }, (_, i) => i + 1);
+    }
+
+    const pages = [];
+
+    // 前5页
+    if (currentPage <= 4) {
+      pages.push(1, 2, 3, 4, 5, '...', totalPage);
+      return pages;
+    }
+
+    // 后5页
+    if (currentPage >= totalPage - 3) {
+      pages.push(
+        1,
+        '...',
+        totalPage - 4,
+        totalPage - 3,
+        totalPage - 2,
+        totalPage - 1,
+        totalPage
+      );
+      return pages;
+    }
+
+    // 中间
+    pages.push(
+      1,
+      '...',
+      currentPage - 2,
+      currentPage - 1,
+      currentPage,
+      currentPage + 1,
+      currentPage + 2,
+      '...',
+      totalPage
+    );
+
+    return pages;
+  }
+
   useEffect(() => {
     if (!fetcher.data) return;
     const _data = fetcher.data;
@@ -136,6 +187,10 @@ export default function CommentsPage() {
     setTotalPages(_data.data.totalPages);
     setTotal(_data.data.total);
   }, [fetcher.data])
+
+  const pages = useMemo(() => {
+    return getPagination(currentPage, totalPages);
+  }, [currentPage, totalPages])
 
   // 上一页
   const handlePreviousPage = () => {
@@ -168,6 +223,7 @@ export default function CommentsPage() {
   const handleConfirmDelete = async () => {
     deleteComment(delId);
   }
+
   // 头部「全选」checkbox 的逻辑
   const handleSelectAll = () => {
     if (allSelected) {
@@ -198,9 +254,11 @@ export default function CommentsPage() {
     }
     reviewModal.hideOverlay();
   }
+
   useEffect(() => {
     getComments(options);
   }, []);
+
   useEffect(() => {
     if (firstLoad.current) {
       firstLoad.current = false;
@@ -357,117 +415,121 @@ export default function CommentsPage() {
           </s-stack>
         </s-box>
 
-        {comments.length === 0 ? (
-          <s-box padding="base" background="subdued">
-            <s-paragraph>暂无符合条件的评论。</s-paragraph>
-          </s-box>
-        ) : (
-          <>
-            <s-table variant="table">
-              <s-grid slot="filters" gap="small-200" gridTemplateColumns="1fr auto">
-                <s-text-field
-                  label="搜索"
-                  value={search}
-                  labelAccessibilityVisibility="exclusive"
-                  icon="search"
-                  placeholder="按作者、商品或评论内容搜索"
-                  onChange={(e) => setSearch(e.currentTarget.value)}
-                />
-                <s-button
-                  icon="sort"
-                  variant="secondary"
-                  accessibilityLabel="Sort"
-                  interestFor="sort-tooltip"
-                  commandFor="sort-actions"
-                />
-                <s-tooltip id="sort-tooltip">
-                  <s-text>Sort</s-text>
-                </s-tooltip>
-                <s-popover id="sort-actions">
-                  <s-stack gap="none">
-                    <s-box padding="small">
-                      <s-choice-list label="Sort by" name="Sort by">
-                        <s-choice value="puzzle-name" selected>
-                          Puzzle name
-                        </s-choice>
-                        <s-choice value="pieces">Pieces</s-choice>
-                        <s-choice value="created">Created</s-choice>
-                        <s-choice value="status">Status</s-choice>
-                      </s-choice-list>
-                    </s-box>
-                    <s-divider />
-                    <s-box padding="small">
-                      <s-choice-list label="Order by" name="Order by">
-                        <s-choice value="product-title" selected>
-                          A-Z
-                        </s-choice>
-                        <s-choice value="created">Z-A</s-choice>
-                      </s-choice-list>
-                    </s-box>
-                  </s-stack>
-                </s-popover>
-              </s-grid>
-              <s-table-header-row>
-                <s-table-header ><s-checkbox id="all-choose" checked={allSelected} indeterminate={someSelected} alignItems='center' onChange={handleSelectAll} /></s-table-header>
-                <s-table-header format="numeric"><s-stack alignItems='center'>序列</s-stack></s-table-header>
-                <s-table-header><s-stack alignItems='center'>商品id</s-stack></s-table-header>
-                <s-table-header listSlot="primary"><s-stack alignItems='center'>用户昵称</s-stack></s-table-header>
-                <s-table-header format="numeric"><s-stack alignItems='center'>评分</s-stack></s-table-header>
-                <s-table-header><s-stack alignItems='center'>评论内容</s-stack></s-table-header>
-                <s-table-header listSlot="inline"><s-stack alignItems='center'>状态</s-stack></s-table-header>
-                <s-table-header listSlot="inline"><s-stack alignItems='center'>提交时间</s-stack></s-table-header>
-                <s-table-header listSlot="labeled"><s-stack alignItems='center'>操作</s-stack></s-table-header>
-              </s-table-header-row>
-              <s-table-body>
-                {comments.map((comment) => (
-                  <s-table-row
-                    key={comment.id}
-                    clickDelegate="mountain-view-checkbox">
-                    <s-table-cell>
-                      <s-checkbox 
-                        onChange={() => handleSelectRow(comment.id)}
-                        checked={selectedIds.includes(comment.id)}
-                        id="mountain-view-checkbox" />
-                    </s-table-cell>
-                    <s-table-cell>
-                      <s-text>{comment.id}</s-text>
-                    </s-table-cell>
-                    <s-table-cell>{comment.productId}</s-table-cell>
-                    <s-table-cell>
-                      <s-stack direction="inline" gap="small">
-                        <s-text type="strong">{comment.author}</s-text>
-                      </s-stack>
-                    </s-table-cell>
-                    <s-table-cell>{renderStars(comment.rating)}</s-table-cell>
-                    <s-table-cell>{comment.content}</s-table-cell>
-                    <s-table-cell>
-                      <s-badge tone={STATUS[comment.status].tone}>
-                        {STATUS[comment.status].label}
-                      </s-badge>
-                    </s-table-cell>
-                    <s-table-cell>{new Date(comment.createdAt).toLocaleString()}</s-table-cell>
-                    <s-table-cell>
-                      <s-stack direction="inline" gap="small" alignItems='center'>
-                        <s-button
-                          variant="tertiary"
-                          onClick={() => handleOpen(2, comment)}
-                        >
-                          编辑
-                        </s-button>
-                        <s-button
-                          variant="tertiary"
-                          tone="critical"
-                          onClick={() => removeComment(comment.id)}
-                        >
-                          删除
-                        </s-button>
-                      </s-stack>
-                    </s-table-cell>
-                  </s-table-row>
-                ))}
-              </s-table-body>
-            </s-table>
-            {/* 自定义数字分页条 */}
+        <s-table variant="table">
+          <s-grid slot="filters" gap="small-200" gridTemplateColumns="1fr auto">
+            <s-text-field
+              label="搜索"
+              value={search}
+              labelAccessibilityVisibility="exclusive"
+              icon="search"
+              placeholder="按作者、商品或评论内容搜索"
+              onChange={(e) => setSearch(e.currentTarget.value)}
+            />
+            <s-button
+              icon="sort"
+              variant="secondary"
+              accessibilityLabel="Sort"
+              interestFor="sort-tooltip"
+              commandFor="sort-actions"
+            />
+            <s-tooltip id="sort-tooltip">
+              <s-text>Sort</s-text>
+            </s-tooltip>
+            <s-popover id="sort-actions">
+              <s-stack gap="none">
+                <s-box padding="small">
+                  <s-choice-list label="Sort by" name="Sort by">
+                    <s-choice value="puzzle-name" selected>
+                      Puzzle name
+                    </s-choice>
+                    <s-choice value="pieces">Pieces</s-choice>
+                    <s-choice value="created">Created</s-choice>
+                    <s-choice value="status">Status</s-choice>
+                  </s-choice-list>
+                </s-box>
+                <s-divider />
+                <s-box padding="small">
+                  <s-choice-list label="Order by" name="Order by">
+                    <s-choice value="product-title" selected>
+                      A-Z
+                    </s-choice>
+                    <s-choice value="created">Z-A</s-choice>
+                  </s-choice-list>
+                </s-box>
+              </s-stack>
+            </s-popover>
+          </s-grid>
+          {comments.length === 0 ? (
+              <s-box padding="base" background="subdued">
+                <s-paragraph>暂无符合条件的评论。</s-paragraph>
+              </s-box>
+            ) : (
+              <>
+                <s-table-header-row>
+                  <s-table-header ><s-checkbox id="all-choose" checked={allSelected} indeterminate={someSelected} alignItems='center' onChange={handleSelectAll} /></s-table-header>
+                  <s-table-header format="numeric"><s-stack alignItems='center'>序列</s-stack></s-table-header>
+                  <s-table-header><s-stack alignItems='center'>商品id</s-stack></s-table-header>
+                  <s-table-header listSlot="primary"><s-stack alignItems='center'>用户昵称</s-stack></s-table-header>
+                  <s-table-header format="numeric"><s-stack alignItems='center'>评分</s-stack></s-table-header>
+                  <s-table-header><s-stack alignItems='center'>评论内容</s-stack></s-table-header>
+                  <s-table-header listSlot="inline"><s-stack alignItems='center'>状态</s-stack></s-table-header>
+                  <s-table-header listSlot="inline"><s-stack alignItems='center'>提交时间</s-stack></s-table-header>
+                  <s-table-header listSlot="labeled"><s-stack alignItems='center'>操作</s-stack></s-table-header>
+                </s-table-header-row>
+                <s-table-body>
+                  {comments.map((comment) => (
+                    <s-table-row
+                      key={comment.id}
+                      clickDelegate="mountain-view-checkbox">
+                      <s-table-cell>
+                        <s-checkbox 
+                          onChange={() => handleSelectRow(comment.id)}
+                          checked={selectedIds.includes(comment.id)}
+                          id="mountain-view-checkbox" />
+                      </s-table-cell>
+                      <s-table-cell>
+                        <s-text>{comment.id}</s-text>
+                      </s-table-cell>
+                      <s-table-cell>{comment.productId}</s-table-cell>
+                      <s-table-cell>
+                        <s-stack direction="inline" gap="small">
+                          <s-text type="strong">{comment.author}</s-text>
+                        </s-stack>
+                      </s-table-cell>
+                      <s-table-cell>{renderStars(comment.rating)}</s-table-cell>
+                      <s-table-cell>{comment.content}</s-table-cell>
+                      <s-table-cell>
+                        <s-badge tone={STATUS[comment.status].tone}>
+                          {STATUS[comment.status].label}
+                        </s-badge>
+                      </s-table-cell>
+                      <s-table-cell>{new Date(comment.createdAt).toLocaleString()}</s-table-cell>
+                      <s-table-cell>
+                        <s-stack direction="inline" gap="small" alignItems='center'>
+                          <s-button
+                            variant="tertiary"
+                            onClick={() => handleOpen(2, comment)}
+                          >
+                            编辑
+                          </s-button>
+                          <s-button
+                            variant="tertiary"
+                            tone="critical"
+                            onClick={() => removeComment(comment.id)}
+                          >
+                            删除
+                          </s-button>
+                        </s-stack>
+                      </s-table-cell>
+                    </s-table-row>
+                  ))}
+                </s-table-body>
+              </>
+            )
+          }
+        </s-table>
+        {/* 自定义数字分页条 */}
+        {comments.length > 0 ? (
             <s-box paddingBlockStart="small" padding="base">
               <s-stack direction="inline" gap="small" alignItems="center" justifyContent="center">
                 {/* 上一页 */}
@@ -480,7 +542,25 @@ export default function CommentsPage() {
                 </s-button>
 
                 {/* 中间页码按钮 */}
-                {Array.from({ length: totalPages }, (_, i) => {
+                {pages.map((_page, index) => {
+                  if (_page === '...') {
+                    return (
+                      <s-text key={`ellipsis-${index}`}>
+                        ...
+                      </s-text>
+                    );
+                  }
+                  return (
+                    <s-button
+                      key={_page}
+                      variant={_page === currentPage ? 'primary' : 'secondary'}
+                      onClick={() => setCurrentPage(_page)}
+                    >
+                      {_page}
+                    </s-button>
+                  );
+                })}
+                {/* {Array.from({ length: totalPages }, (_, i) => {
                   const page = i + 1;
                   return (
                     <s-button
@@ -491,7 +571,7 @@ export default function CommentsPage() {
                       {page}
                     </s-button>
                   );
-                })}
+                })} */}
 
                 {/* 下一页 */}
                 <s-button
@@ -502,9 +582,10 @@ export default function CommentsPage() {
                   下一页
                 </s-button>
               </s-stack>
-            </s-box>
-          </>
-        )}
+            </s-box> 
+          ): ''
+        }
+
       </s-section>
 
       <s-section heading="管理说明">
@@ -525,7 +606,6 @@ export default function CommentsPage() {
           <s-list-item>Theme Extension：前台展示已通过评论</s-list-item>
         </s-unordered-list>
       </s-section>
-
       
       <s-modal ref={modalRef} size="large" id="review-modal" accessibilityLabel={accessibilityLabel} heading={headingTitle}>
         <ReviewForm 

@@ -3,6 +3,7 @@ import { useLoading } from '../contexts/LoadingProvider';
 export default function GlobalLoading() {
   const { loading } = useLoading();
   console.log('loading=', loading);
+
   if (!loading) return null;
 
   return (

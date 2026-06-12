@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '../../utils/toast.js'
 import { request } from '../../utils/request.js';
+import { useLoading } from '../../contexts/LoadingProvider';
+
 // 评论表单
 export default function ReviewForm({onResult, isOk, headingTitle, comment, locales}) {
   const [author, setAuthor] = useState('');
@@ -15,7 +17,7 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment, local
   const [locale, setLocale] = useState('');
   const dropzoneRef = useRef(null);
   const toast = useToast();
-  // console.log('comment :>> ', comment);
+  const { loading } = useLoading();
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!author || !productId || !title || !content) {
@@ -271,6 +273,17 @@ export default function ReviewForm({onResult, isOk, headingTitle, comment, local
           </s-inline-layout>
         </s-stack>
       </form>
+      {loading && <div id="GlobalLoading" style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999999,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        background: "rgba(255,255,255,.5)",
+      }}>
+        <s-spinner />
+      </div>}
     </s-section>
   )
 }

@@ -36,12 +36,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   function hideLoading() {
     document.getElementById('global-loading').style.display = 'none';
   }
-  async function getReviews() {
+  async function getReviews(rating = '') {
     try {
       console.log('object :>> 请求');
-      const response = await fetch(`/apps/reviews?id=${productId}&page=${page}&pageSize=${pageSize}&visitorId=${visitorId}&locale=${locale}`);
+      const response = await fetch(`/apps/reviews?id=${productId}&page=${page}&pageSize=${pageSize}&visitorId=${visitorId}&locale=${locale}${rating ? `&rating=${rating}` : ''}`);
       const reviews = await response.json();
-      console.log('reviews :>> ', reviews);
+      // console.log('reviews :>> ', reviews);
       if (reviews?.success) {
         list = reviews?.data?.list;
         page = reviews?.data?.page;
@@ -125,42 +125,69 @@ document.addEventListener('DOMContentLoaded', async () => {
     })
   }
   function renderPagenation() {
-    const pageCount = Math.ceil(total / pageSize); // 总页数
-    const pagination = document.getElementById('reviews_pagination');
-    if (pageCount <= 1) {
-      pagination.style.display = 'none';
-      return;
-    }
-    let pageHtml = '';
-    for (let i = 0; i < pageCount; i++) {
-      pageHtml += `<li class="pagination_li_num ${i + 1 == page ? 'pagination_li_num_active' : ''}">${i + 1}</li>`
-    }
-    pagination.innerHTML = pageHtml;
-
+    const paginationContainer = document.getElementById('reviews_pagination');
     const nextBtn = document.querySelector('.pagination_next');
     const prevBtn = document.querySelector('.pagination_prev');
-    const pageBtns = pagination.querySelectorAll('.pagination_li_num');
-    pageBtns.forEach(btn => {
-      btn.addEventListener('click', function() {
-        const selectedPage = Number(this.innerText);
-        if (selectedPage !== page) {
-          page = selectedPage;
-          getReviews();
+    
+    const pageCount = Math.ceil(total / pageSize); // 总页数
+    if (pageCount <= 1) {
+      paginationContainer.style.display = 'none';
+      return;
+    } else {
+      paginationContainer.style.display = 'flex';
+    }
+
+     // 生成页码数组
+    function getPages(currentPage, totalPages) {
+      const pages = [];
+      if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+      } else {
+        if (currentPage <= 4) {
+          pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        } else if (currentPage >= totalPages - 3) {
+          pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        } else {
+          pages.push(1, '...', currentPage - 2, currentPage - 1, currentPage, currentPage + 1, currentPage + 2, '...', totalPages);
         }
-      })
-    })
-    nextBtn.addEventListener('click', function(e) {
-      if (page < pageCount) {
-        page++;
-        getReviews();
       }
-    })
-    prevBtn.addEventListener('click', function(e) {
+      return pages;
+    }
+
+    const pages = getPages(page, pageCount);
+
+    paginationContainer.innerHTML = pages
+    .map(p => `<li class="pagination_li_num ${p === page ? 'pagination_li_num_active' : ''}" data-page="${p}">${p}</li>`)
+    .join('');
+
+    // 上一页 / 下一页禁用
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = page >= pageCount;
+    // 使用事件委托绑定点击事件
+    paginationContainer.onclick = (e) => {
+      const li = e.target.closest('.pagination_li_num');
+      if (!li) return;
+      const selectedPage = li.dataset.page;
+      if (selectedPage === '...') return; // 省略号不触发
+      if (Number(selectedPage) !== page) {
+        page = Number(selectedPage);
+        getReviews(page);
+      }
+    };
+
+    prevBtn.onclick = () => {
       if (page > 1) {
         page--;
-        getReviews();
+        getReviews(page);
       }
-    })
+    };
+
+    nextBtn.onclick = () => {
+      if (page < pageCount) {
+        page++;
+        getReviews(page);
+      }
+    };
   }
   function renderRatingSummary(option, total, avgRating) {
     let summaryHtml = '';
@@ -186,7 +213,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let startHtml = '';
     const _avgRating = Math.floor(avgRating);
-    const isDot = avgRating.toString().includes('.');
+    let isDot = avgRating.toString().includes('.');
     for(let i = 0; i < 5; i++) {
       if (i < _avgRating) {
         startHtml += `<li class="review_ratings_star_li"><svg width="25" height="25" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"><path d="M500 10 L605 320 L930 320 L665 510 L770 830 L500 630 L230 830 L335 510 L70 320 L395 320 Z" fill="#1999bf" /></svg></li>`
@@ -194,6 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (isDot) {
         startHtml += `<li class="review_ratings_star_li"><svg width="25" height="25" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"><path d="M500 10 L605 320 L930 320 L665 510 L770 830 L500 630 L230 830 L335 510 L70 320 L395 320 Z" fill="#1999bf" /><path d="M500 10 L605 320 L930 320 L665 510 L770 830 L500 630 Z" fill="white" stroke="#1999bf" stroke-width="16" /></svg></li>`
+        isDot = false;
         continue
       }
       startHtml += `<li class="review_ratings_star_li"><svg width="25" height="25" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"><path d="M500 10 L605 320 L930 320 L665 510 L770 830 L500 630 L230 830 L335 510 L70 320 L395 320 Z" fill="white" stroke="#1999bf" stroke-width="16" /></svg></li>`
@@ -203,6 +231,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     Reviews_top_wrapper.innerHTML = summaryHtml;
     review_ratings_ratingTotal.innerHTML = avgRating;
     rating_review_total.innerHTML = total;
+
+    Reviews_top_wrapper.onclick = (e) => {
+      const reviewProgressRate = e.target.closest('.Reviews_progress_rate');
+      if (!reviewProgressRate) return;
+      const rating = reviewProgressRate.dataset.type;
+      getReviews(rating);
+    }
+
   }
 
   async function setReviewLike(reviewId) {

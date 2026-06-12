@@ -292,8 +292,17 @@ const getReviews = async ({ page, pageSize, filter, search, shop}) => {
   if (filter !== 'all') {
     where.status = filter;
   }
+  const isNumber = /^\d+$/.test(cleanSearch);
   if (search) {
     where.OR = [
+      !isNumber 
+        ? undefined
+        : { id: Number(cleanSearch) },
+      {
+        productId: {
+          contains: cleanSearch,
+        }
+      },
       {
         author: {
           contains: cleanSearch,
