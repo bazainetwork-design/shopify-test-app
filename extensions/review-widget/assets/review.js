@@ -20,6 +20,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   let page = 1;
   let pageSize = 5;
   let total = 0;
+  Date.prototype.Format = function () {
+    let times = this.toUTCString(); //
+    let US = times.slice(4, 16);
+    // 欧洲
+    let year = times.slice(12, 16);
+    let day = times.slice(5, 7);
+    let month = times.slice(8, 11);
+    let Eup = month + " " + day + "," + year;
+    return Eup;
+  };
   function showLoading() {
     document.getElementById('global-loading').style.display = 'flex';
   }
@@ -90,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <svg t="1780643275158" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1167" width="35" height="35"><path d="M512 0a512 512 0 1 0 512 512A512 512 0 0 0 512 0zM213.333 832A298.667 298.667 0 0 1 512 533.333a170.667 170.667 0 1 1 170.667-170.666A170.667 170.667 0 0 1 512 533.333 298.667 298.667 0 0 1 810.667 832z" fill="#1898bf" p-id="1168"></path></svg>
             <span class="username">${_author}</span>
           </div>
-          <div class="li_left_dateTime">${t.reviewedOn} ${new Date(review.createdAt).toLocaleString()}</div>
+          <div class="li_left_dateTime">${t.reviewedOn} ${new Date(review.createdAt).Format()}</div>
           <div class="li_right_rate">
             <div class="rate_top">
               <div class="rate">

@@ -1,5 +1,6 @@
 {{ 'review.css' | asset_url | stylesheet_tag }}
-{{ 'review.js' | asset_url | script_tag }}
+
+<script src="{{ 'review.js' | asset_url }}" defer></script>
 <script>
   window.reviewTranslations = {
     review_submit: {{ 'reviews.review_submit' | t | json }},

@@ -92,7 +92,7 @@ export default function CommentsPage() {
   const fileRef = useRef(null);
   const [locales, setLocales] = useState([]);
   const [language, setLanguage] = useState('en');
-  let firstLoad = useRef(true);
+  // let firstLoad = useRef(true);
 
   const handleChange = (e) => {
     setLanguage(e.target.value);
@@ -198,14 +198,19 @@ export default function CommentsPage() {
     }
     reviewModal.hideOverlay();
   }
-
   useEffect(() => {
-    if (firstLoad.current) {
-      firstLoad.current = false;
-      return
-    }
-    const timer = setTimeout(async () => {
-      await getComments({...options, page: currentPage, filter, search: search.trim().toLowerCase() })
+    getComments({
+      page: 1,
+      pageSize: 10
+    });
+  }, []);
+  useEffect(() => {
+    // if (firstLoad.current) {
+    //   firstLoad.current = false;
+    //   return
+    // }
+    const timer = setTimeout(() => {
+      getComments({...options, page: currentPage, filter, search: search.trim().toLowerCase() })
     }, 300)
 
     return () => clearTimeout(timer);
