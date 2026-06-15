@@ -1,16 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
@@ -33,14 +27,11 @@ model Session {
   refreshTokenExpires DateTime?
 }
 
-// 评论数据
 model Review {
-  id Int @id @default(autoincrement())
-
+  id        Int          @id @default(autoincrement())
   userId    String?
   productId String
   shop      String
-
   author    String
   rating    Int
   title     String
@@ -48,39 +39,31 @@ model Review {
   status    ReviewStatus @default(pending)
   imageUrl  String?
   isDeleted Boolean      @default(false)
-
-  locale String @default("en")
-
+  locale    String       @default("en")
   likeCount Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
   likes     ReviewLike[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
-enum ReviewStatus {
-  pending
-  approved
-  rejected
-}
-
-// 记录图片上传日志
 model UploadLog {
   id        Int      @id @default(autoincrement())
   userId    String
   createdAt DateTime @default(now())
 }
 
-// 评论点赞表
 model ReviewLike {
-  id Int @id @default(autoincrement())
-
+  id         Int      @id @default(autoincrement())
   reviewId   Int
   customerId String
-
-  review Review @relation(fields: [reviewId], references: [id])
-
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  review     Review   @relation(fields: [reviewId], references: [id])
 
   @@unique([reviewId, customerId])
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
 }

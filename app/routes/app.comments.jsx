@@ -92,6 +92,9 @@ export default function CommentsPage() {
   const fileRef = useRef(null);
   const [locales, setLocales] = useState([]);
   const [language, setLanguage] = useState('en');
+  const [statusMap, setStatusMap] = useState({});
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [orderBy, setOrderBy] = useState('desc');
   let firstLoad = useRef(true);
 
   const handleChange = (e) => {
@@ -106,16 +109,14 @@ export default function CommentsPage() {
   }
 
   const getComments = async (params) => {
-    const { page, pageSize, filter, search } = params;
-
+    let baseUrl = '/api/review?';
+    Object.keys(params).map(param => {
+      baseUrl += `${param}=${params[param]}&`;
+    })
+    baseUrl = baseUrl.slice(0, -1);
     // 这里可以调用 API 获取评论列表,并更新状态
-    fetcher.load(`/api/review?page=${page}&pageSize=${pageSize}&filter=${filter}&search=${search}`);
+    fetcher.load(baseUrl);
   }
-
-  // 监听 fetcher 状态
-  useEffect(() => {
-    console.log('fetcher.state :>> ', fetcher.state);
-  }, [fetcher.state]);
 
   const deleteComment = async (id) => {
     // 这里可以调用 API 获取评论列表,并更新状态
@@ -182,6 +183,7 @@ export default function CommentsPage() {
   useEffect(() => {
     if (!fetcher.data) return;
     const _data = fetcher.data;
+    setStatusMap({ ..._data.data.statusMap });
     setLocales(_data.locales);
     setComments(_data.data.list);
     setTotalPages(_data.data.totalPages);
@@ -201,17 +203,6 @@ export default function CommentsPage() {
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
-
-  // 把计算结果缓存起来,避免重复计算
-  const stats = useMemo(
-    () => ({
-      total: comments.length, // 总数
-      pending: comments.filter((c) => c.status === "pending").length, // 待审核数量
-      approved: comments.filter((c) => c.status === "approved").length, // 已通过数量
-      rejected: comments.filter((c) => c.status === "rejected").length, // 已拒绝数量
-    }),
-    [comments] // 依赖项,当 comments 变化时,重新计算
-  );
 
   // 删除评论
   const removeComment = (id) => {
@@ -265,11 +256,18 @@ export default function CommentsPage() {
       return
     }
     const timer = setTimeout(() => {
-      getComments({...options, page: currentPage, filter, search: search.trim().toLowerCase() })
+      getComments({
+        ...options, 
+        page: currentPage, 
+        filter, 
+        search: search.trim().toLowerCase(),
+        sortBy,
+        orderBy
+      })
     }, 300)
 
     return () => clearTimeout(timer);
-  }, [filter, search, currentPage])
+  }, [filter, search, currentPage, sortBy, orderBy])
 
   const handleOpen = (type, comment) => {
     const reviewModal = document.getElementById('review-modal');
@@ -346,6 +344,18 @@ export default function CommentsPage() {
     setCurrentPage(1);
   }
 
+  const handleSortBy = (e) => {
+    console.log('e.currentTarget.value :>> ', e.currentTarget.values);
+    const _value = e.currentTarget.values[0]
+    setSortBy(_value)
+  }
+
+  const handleOrderBy = (e) => {
+    console.log('e.currentTarget.value :>> ', e.currentTarget.values);
+    const _value = e.currentTarget.values[0]
+    setOrderBy(_value)
+  }
+
   return (
     <s-page heading="评论管理">
 
@@ -361,19 +371,19 @@ export default function CommentsPage() {
           <s-box padding="base" borderWidth="base" borderRadius="base">
             <s-stack direction="block" gap="small">
               <s-text>待审核</s-text>
-              <s-text type="strong">{stats.pending}</s-text>
+              <s-text type="strong">{statusMap.pending || 0}</s-text>
             </s-stack>
           </s-box>
           <s-box padding="base" borderWidth="base" borderRadius="base">
             <s-stack direction="block" gap="small">
               <s-text>已通过</s-text>
-              <s-text type="strong">{stats.approved}</s-text>
+              <s-text type="strong">{statusMap.approved || 0}</s-text>
             </s-stack>
           </s-box>
           <s-box padding="base" borderWidth="base" borderRadius="base">
             <s-stack direction="block" gap="small">
               <s-text>已拒绝</s-text>
-              <s-text type="strong">{stats.rejected}</s-text>
+              <s-text type="strong">{statusMap.rejected || 0}</s-text>
             </s-stack>
           </s-box>
         </s-stack>
@@ -438,22 +448,17 @@ export default function CommentsPage() {
             <s-popover id="sort-actions">
               <s-stack gap="none">
                 <s-box padding="small">
-                  <s-choice-list label="Sort by" name="Sort by">
-                    <s-choice value="puzzle-name" selected>
-                      Puzzle name
-                    </s-choice>
-                    <s-choice value="pieces">Pieces</s-choice>
-                    <s-choice value="created">Created</s-choice>
-                    <s-choice value="status">Status</s-choice>
+                  <s-choice-list label="Sort by" name="Sort by" onChange={handleSortBy}>
+                    <s-choice value="id">序列</s-choice>
+                    <s-choice value="rating">评分</s-choice>
+                    <s-choice value="createdAt" selected>日期</s-choice>
                   </s-choice-list>
                 </s-box>
                 <s-divider />
                 <s-box padding="small">
-                  <s-choice-list label="Order by" name="Order by">
-                    <s-choice value="product-title" selected>
-                      A-Z
-                    </s-choice>
-                    <s-choice value="created">Z-A</s-choice>
+                  <s-choice-list label="Order by" name="Order by" onChange={handleOrderBy}>
+                    <s-choice value="asc">从小到大</s-choice>
+                    <s-choice value="desc" selected>从大到小</s-choice>
                   </s-choice-list>
                 </s-box>
               </s-stack>
@@ -560,18 +565,6 @@ export default function CommentsPage() {
                     </s-button>
                   );
                 })}
-                {/* {Array.from({ length: totalPages }, (_, i) => {
-                  const page = i + 1;
-                  return (
-                    <s-button
-                      key={page}
-                      variant={page === currentPage ? 'primary' : 'secondary'}
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </s-button>
-                  );
-                })} */}
 
                 {/* 下一页 */}
                 <s-button

@@ -10,8 +10,17 @@ export async function loader({ request }) {
   const pageSize = Number(url.searchParams.get('pageSize')) || 10;
   const filter = url.searchParams.get('filter') || 'all';
   const search = url.searchParams.get('search') || '';
+  const sortBy = url.searchParams.get('sortBy') || 'createdAt';
+  const orderBy = url.searchParams.get('orderBy') || 'desc';
   const shop = session.shop;
-
+  const sort_allowfield = ['createdAt', 'id', 'rating'];
+  const order_allowfield = ['desc', 'asc'];
+  if (!sort_allowfield.includes(sortBy)) {
+    return errorResponse({ message: 'Invalid sortBy field' })
+  }
+  if (!order_allowfield.includes(orderBy)) {
+    return errorResponse({ message: 'Invalid orderBy field' })
+  }
   const response = await admin.graphql(`
     #graphql
     query {
@@ -30,6 +39,8 @@ export async function loader({ request }) {
     pageSize,
     filter,
     search,
+    sortBy,
+    orderBy,
     shop
   })
 
@@ -280,7 +291,7 @@ const DeleteReview = async (id) => {
 // }
 
 // 获取评论
-const getReviews = async ({ page, pageSize, filter, search, shop}) => {
+const getReviews = async ({ page, pageSize, filter, search, sortBy, orderBy, shop}) => {
   const cleanSearch = sanitizeHtml(search, {
     allowedTags: [],
     allowedAttributes: {},
@@ -320,24 +331,42 @@ const getReviews = async ({ page, pageSize, filter, search, shop}) => {
       }
     ]
   }
-  const [list, total] = await Promise.all([
+  const [list, total, statusCount] = await Promise.all([
     prisma.review.findMany({
       where,
       skip: (page - 1) * pageSize,
       take: pageSize,
       orderBy: {
-        createdAt: 'desc'
+        [sortBy]: orderBy
       }
     }),
     prisma.review.count({
       where
+    }),
+    prisma.review.groupBy({
+      by: ['status'],
+      where: {
+        shop,
+        isDeleted: false
+      },
+      _count: {
+        status: true
+      }
     })
   ]);
+
+  const statusMap = Object.fromEntries(
+    statusCount.map(item => [
+      item.status,
+      item._count.status
+    ])
+  );
 
   return successResponse({
     data: {
       list,
       total,
+      statusMap,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize)

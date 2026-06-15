@@ -13,6 +13,9 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY . .
 
+# 生成 Prisma client（非常重要）
+RUN npx prisma generate
+
 RUN npm run build
 
-CMD ["npm", "run", "docker-start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run docker-start"]
