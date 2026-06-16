@@ -37,7 +37,7 @@ ul,li{list-style: none;}
 }
 
 .Reviews_progress_rate:hover {
-  background-color: rgba(25,153,191, .5);
+  opacity: .85;
 }
 
 .progress-bar {

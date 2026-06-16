@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('object :>> 请求');
       const response = await fetch(`/apps/reviews?id=${productId}&page=${page}&pageSize=${pageSize}&visitorId=${visitorId}&locale=${locale}${rating ? `&rating=${rating}` : ''}`);
       const reviews = await response.json();
-      // console.log('reviews :>> ', reviews);
+      console.log('reviews :>> ', reviews);
       if (reviews?.success) {
         list = reviews?.data?.list;
         page = reviews?.data?.page;
@@ -197,6 +197,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const review_ratings_star_ul = document.getElementById('review_ratings_star_ul');
 
     Object.entries(option).sort((a, b) => Number(b[0]) - Number(a[0])).map(([rating, count]) => {
+      console.log('rating :>> ', rating);
+      console.log('count :>> ', count);
+      console.log('total :>> ', total);
+      console.log('count / total :>> ', count / total * 100);
       summaryHtml += `
         <li class="flex Reviews_top_progress mb10">
           <p class="flex Reviews_top_txt">
@@ -204,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <span class="">${t.stars}</span>
           </p>
           <div class="Reviews_progress_rate pointer" data-type="${rating}">
-            <div class="progress-bar" style="width: ${Math.ceil(count / total)}%;"></div>
+            <div class="progress-bar" style="width: ${(count / total * 100).toFixed(2)}%;"></div>
           </div>
           <p class=""><span class="start_${rating}">${count}</span></p>
         </li>
