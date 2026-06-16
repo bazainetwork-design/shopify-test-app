@@ -345,13 +345,11 @@ export default function CommentsPage() {
   }
 
   const handleSortBy = (e) => {
-    console.log('e.currentTarget.value :>> ', e.currentTarget.values);
     const _value = e.currentTarget.values[0]
     setSortBy(_value)
   }
 
   const handleOrderBy = (e) => {
-    console.log('e.currentTarget.value :>> ', e.currentTarget.values);
     const _value = e.currentTarget.values[0]
     setOrderBy(_value)
   }
