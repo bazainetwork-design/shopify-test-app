@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "59c59ffd32cad10934533978329bb680"
+client_id = "5116299c3ee823454b406aa897638914"
 name = "byte-test-dev"
 application_url = "https://shopify-test-app-production-186c.up.railway.app"
 embedded = true
